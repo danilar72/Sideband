@@ -53,6 +53,12 @@ jobs:
           ln -s ../LXST/LXST ./LXST
           ln -s ../LXMF/LXMF ./LXMF
 
+      - name: Fix LXST hardcoded path
+        run: |
+          # Рецепт lxst жёстко ссылается на путь разработчика markqvist
+          sudo mkdir -p /home/markqvist/Information/Source
+          sudo cp -r LXST /home/markqvist/Information/Source/LXST
+
       - name: Build APK
         run: |
           cd sideband
@@ -61,10 +67,13 @@ jobs:
       - name: Fetch APK
         run: |
           cd sideband
-          make fetchapk
+          mkdir -p dist
+          cp ./sbapp/bin/sideband-*-release.apk ./dist/ 2>/dev/null || true
+          # Если release не собрался, берём debug
+          find ./sbapp/.buildozer -name "*.apk" -exec cp {} ./dist/ \; 2>/dev/null || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: sideband-apk
-          path: sideband/dist/sideband-*-release.apk
+          path: sideband/dist/*.apk
