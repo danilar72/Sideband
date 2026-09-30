@@ -1,29 +1,70 @@
-   name: Build Android APK
-   on: [push]
-   jobs:
-     build:
-       runs-on: ubuntu-latest
-       steps:
-         - name: Checkout code
-           uses: actions/checkout@v4
-           with:
-             submodules: recursive # Важно для загрузки Reticulum/LXMF
-         - name: Set up Python
-           uses: actions/setup-python@v5
-           with:
-             python-version: '3.10'
-         - name: Install dependencies
-           run: |
-             sudo apt-get update
-             sudo apt-get install -y build-essential git python3-pip python3-dev \
-               ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
-               libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev
-             pip3 install buildozer cython
-         - name: Build APK
-           run: |
-             make apk
-         - name: Upload APK
-           uses: actions/upload-artifact@v4
-           with:
-             name: sideband-apk
-             path: sbapp/bin/sideband-*-release.apk
+  name: Build Android APK
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sideband
+        uses: actions/checkout@v4
+        with:
+          path: sideband
+
+      - name: Checkout Reticulum
+        uses: actions/checkout@v4
+        with:
+          repository: markqvist/Reticulum
+          path: Reticulum
+
+      - name: Checkout LXMF
+        uses: actions/checkout@v4
+        with:
+          repository: markqvist/LXMF
+          path: LXMF
+
+      - name: Checkout LXST
+        uses: actions/checkout@v4
+        with:
+          repository: markqvist/LXST
+          path: LXST
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git python3-pip python3-dev \
+            ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+            libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev
+          pip3 install buildozer cython
+
+      - name: Create environment file
+        run: |
+          touch sideband/environment
+
+      - name: Create symlinks
+        run: |
+          cd sideband
+          ln -s ../Reticulum/RNS ./RNS
+          ln -s ../LXST/LXST ./LXST
+          ln -s ../LXMF/LXMF ./LXMF
+
+      - name: Build APK
+        run: |
+          cd sideband
+          make apk
+
+      - name: Fetch APK
+        run: |
+          cd sideband
+          make fetchapk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: sideband-apk
+          path: sideband/dist/sideband-*-release.apk
