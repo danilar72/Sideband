@@ -10,6 +10,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: sideband
+          submodules: recursive
 
       - name: Checkout Reticulum
         uses: actions/checkout@v4
@@ -46,18 +47,15 @@ jobs:
         run: |
           touch sideband/environment
 
-      - name: Create symlinks
+      - name: Fix hardcoded paths in recipes
         run: |
-          cd sideband
-          ln -s ../Reticulum/RNS ./RNS
-          ln -s ../LXST/LXST ./LXST
-          ln -s ../LXMF/LXMF ./LXMF
-
-      - name: Fix LXST hardcoded path
-        run: |
-          # Рецепт lxst жёстко ссылается на путь разработчика markqvist
-          sudo mkdir -p /home/markqvist/Information/Source
-          sudo cp -r LXST /home/markqvist/Information/Source/LXST
+          # КЛЮЧЕВОЙ ШАГ: Заменяем путь разработчика на текущую рабочую директорию GitHub
+          sed -i 's|/home/markqvist/Information/Source/|${{ github.workspace }}/|g' sideband/recipes/lxst/__init__.py
+          
+          # Создаем симлинк для совместимости, если Makefile ожидает его в папке sideband
+          ln -sf ${{ github.workspace }}/LXST sideband/LXST || true
+          ln -sf ${{ github.workspace }}/Reticulum/RNS sideband/RNS || true
+          ln -sf ${{ github.workspace }}/LXMF/LXMF sideband/LXMF || true
 
       - name: Build APK
         run: |
@@ -68,9 +66,8 @@ jobs:
         run: |
           cd sideband
           mkdir -p dist
-          cp ./sbapp/bin/sideband-*-release.apk ./dist/ 2>/dev/null || true
-          # Если release не собрался, берём debug
-          find ./sbapp/.buildozer -name "*.apk" -exec cp {} ./dist/ \; 2>/dev/null || true
+          # Ищем любой собранный APK (release или debug) и копируем в папку dist
+          find . -name "*.apk" -exec cp {} ./dist/ \; 2>/dev/null || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
